@@ -1,0 +1,28 @@
+#!/bin/bash
+clear
+/lib/systemd/systemd-udevd &
+udevadm trigger
+udevadm settle
+clear
+while [[ ! -b /dev/$rootfs ]] ; do
+    lsblk
+    echo "EFI Directory:"
+    read rootfs
+done
+clear
+while [[ ! -b /dev/$mbr ]] ; do
+    lsblk
+    echo "MBR Directory:"
+    read mbr
+done
+read -p "grub file: " grub_file
+clear
+modprobe efivars
+mount -t efivarfs efivarfs /sys/firmware/efi/efivars
+mount /dev/$rootfs /mnt
+grub-install --bootloader-id=grub --boot-directory=/mnt/boot --efi-directory=/mnt --root-directory=/mnt --locales= --removable --force --compress=gz /dev/$mbr
+efibootmgr --create --disk /dev/$mbr --part ${rootfs/*[a-z]/} --loader /efi/boot/grubx64.efi --label "pacperro"
+export pkgdatadir=/usr/lib/grub
+mkdir -p /var/lib/os-prober
+cp -a $grub_file /mnt/boot/grub/grub.cfg
+sync ; echo b > /proc/sysrq-trigger
